@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>长截图裁切工具</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #f5f4f0;
+    --card: #ffffff;
+    --text: #1a1a1a;
+    --text2: #666;
+    --accent: #2563eb;
+    --accent-light: #dbeafe;
+    --border: #e5e5e5;
+    --danger: #dc2626;
+    --success: #16a34a;
+    --radius: 12px;
+  }
+
+  body {
+    font-family: 'Noto Sans SC', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px 16px;
+  }
+
+  .container {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 8px;
+  }
+
+  header p {
+    color: var(--text2);
+    font-size: 14px;
+    font-weight: 300;
+  }
+
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--card);
+    position: relative;
+  }
+
+  .upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--accent);
+    background: var(--accent-light);
+  }
+
+  .upload-zone svg {
+    width: 48px;
+    height: 48px;
+    color: var(--text2);
+    margin-bottom: 12px;
+  }
+
+  .upload-zone .label {
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+
+  .upload-zone .hint {
+    font-size: 13px;
+    color: var(--text2);
+  }
+
+  .upload-zone input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .settings {
+    display: flex;
+    gap: 16px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+  }
+
+  .setting-group {
+    flex: 1;
+    min-width: 180px;
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 16px;
+    border: 1px solid var(--border);
+  }
+
+  .setting-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text2);
+    margin-bottom: 8px;
+  }
+
+  .setting-group select, .setting-group input[type="number"] {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  .preview-section {
+    margin-top: 24px;
+    display: none;
+  }
+
+  .preview-section.active { display: block; }
+
+  .preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .preview-header h2 {
+    font-size: 18px;
+    font-weight: 500;
+  }
+
+  .info-badge {
+    font-size: 13px;
+    color: var(--text2);
+    background: var(--card);
+    border: 1px solid var(--border);
+    padding: 4px 12px;
+    border-radius: 20px;
+  }
+
+  .pages-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+  }
+
+  .page-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+
+  .page-card canvas {
+    width: 100%;
+    display: block;
+  }
+
+  .page-card .page-label {
+    padding: 8px 12px;
+    font-size: 12px;
+    color: var(--text2);
+    text-align: center;
+    border-top: 1px solid var(--border);
+    font-weight: 500;
+  }
+
+  .actions {
+    margin-top: 24px;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+  }
+
+  .btn-primary:hover { background: #1d4ed8; }
+
+  .btn-outline {
+    background: var(--card);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  .btn-outline:hover { background: var(--bg); }
+
+  .btn-danger {
+    background: white;
+    color: var(--danger);
+    border: 1px solid var(--border);
+  }
+
+  .btn-danger:hover { background: #fef2f2; }
+
+  .overlap-hint {
+    margin-top: 12px;
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.6;
+  }
+
+  @media (max-width: 500px) {
+    body { padding: 16px 12px; }
+    header h1 { font-size: 22px; }
+    .upload-zone { padding: 32px 16px; }
+    .pages-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+    .settings { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>长截图裁切工具</h1>
+    <p>上传长截图 → 自动按A4比例裁切 → 导出PDF打印</p>
+  </header>
+
+  <div class="upload-zone" id="uploadZone">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+    </svg>
+    <div class="label">点击或拖拽上传长截图</div>
+    <div class="hint">支持 PNG / JPG / WebP</div>
+    <input type="file" id="fileInput" accept="image/*">
+  </div>
+
+  <div class="settings">
+    <div class="setting-group">
+      <label>纸张方向</label>
+      <select id="orientation">
+        <option value="portrait">纵向 (A4竖版)</option>
+        <option value="landscape">横向 (A4横版)</option>
+      </select>
+    </div>
+    <div class="setting-group">
+      <label>页间重叠 (像素)</label>
+      <input type="number" id="overlap" value="40" min="0" max="200" step="10">
+    </div>
+    <div class="setting-group">
+      <label>两侧留白 (%)</label>
+      <select id="marginPct">
+        <option value="0">无留白 (撑满)</option>
+        <option value="5">5% — 微留白</option>
+        <option value="10" selected>10% — 适中</option>
+        <option value="15">15% — 宽松</option>
+        <option value="20">20% — 大留白</option>
+      </select>
+    </div>
+  </div>
+  <div class="overlap-hint">重叠区域可避免文字在分页处被截断。两侧留白让打印效果更接近单页截图。</div>
+
+  <div class="preview-section" id="previewSection">
+    <div class="preview-header">
+      <h2>裁切预览</h2>
+      <span class="info-badge" id="pageCount"></span>
+    </div>
+    <div class="pages-grid" id="pagesGrid"></div>
+
+    <div class="actions">
+      <button class="btn btn-primary" id="exportPdf">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+        导出 PDF
+      </button>
+      <button class="btn btn-outline" id="exportImages">导出单页图片(ZIP)</button>
+      <button class="btn btn-danger" id="resetBtn">重新上传</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const { jsPDF } = window.jspdf;
+
+const fileInput = document.getElementById('fileInput');
+const uploadZone = document.getElementById('uploadZone');
+const previewSection = document.getElementById('previewSection');
+const pagesGrid = document.getElementById('pagesGrid');
+const pageCountBadge = document.getElementById('pageCount');
+const orientationSelect = document.getElementById('orientation');
+const overlapInput = document.getElementById('overlap');
+const marginSelect = document.getElementById('marginPct');
+
+let sourceImage = null;
+let slices = [];
+
+// A4 ratio: 210mm x 297mm
+const A4_RATIO = 297 / 210; // height / width ≈ 1.4143
+
+// Drag & drop
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('dragover');
+  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+
+fileInput.addEventListener('change', e => {
+  if (e.target.files[0]) handleFile(e.target.files[0]);
+});
+
+orientationSelect.addEventListener('change', () => { if (sourceImage) sliceImage(); });
+overlapInput.addEventListener('change', () => { if (sourceImage) sliceImage(); });
+marginSelect.addEventListener('change', () => { if (sourceImage) sliceImage(); });
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  sourceImage = null;
+  slices = [];
+  previewSection.classList.remove('active');
+  fileInput.value = '';
+  uploadZone.style.display = '';
+});
+
+function handleFile(file) {
+  if (!file.type.startsWith('image/')) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      sourceImage = img;
+      uploadZone.style.display = 'none';
+      sliceImage();
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function sliceImage() {
+  const isPortrait = orientationSelect.value === 'portrait';
+  const ratio = isPortrait ? A4_RATIO : (1 / A4_RATIO);
+  const overlap = parseInt(overlapInput.value) || 0;
+
+  const imgW = sourceImage.width;
+  const imgH = sourceImage.height;
+
+  // Each page: full width of image, height = width * ratio
+  const pageH = Math.round(imgW * ratio);
+  const step = Math.max(pageH - overlap, 1);
+
+  slices = [];
+  let y = 0;
+  while (y < imgH) {
+    const h = Math.min(pageH, imgH - y);
+    slices.push({ y, h, fullH: pageH });
+    y += step;
+    if (y >= imgH) break;
+  }
+
+  renderPreview();
+}
+
+function renderPreview() {
+  pagesGrid.innerHTML = '';
+  pageCountBadge.textContent = `共 ${slices.length} 页`;
+  previewSection.classList.add('active');
+
+  const marginPct = parseInt(marginSelect.value) / 100;
+
+  slices.forEach((slice, i) => {
+    const card = document.createElement('div');
+    card.className = 'page-card';
+
+    // Canvas represents the full A4 page
+    const isPortrait = orientationSelect.value === 'portrait';
+    const a4Ratio = isPortrait ? A4_RATIO : (1 / A4_RATIO);
+    const canvasW = 800; // fixed render width for preview
+    const canvasH = Math.round(canvasW * a4Ratio);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = canvasW;
+    canvas.height = canvasH;
+    const ctx = canvas.getContext('2d');
+
+    // White background (the "paper")
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvasW, canvasH);
+
+    // Draw image centered with margin
+    const marginX = Math.round(canvasW * marginPct);
+    const drawW = canvasW - marginX * 2;
+    const drawH = Math.round(drawW * (slice.h / sourceImage.width));
+    const marginY = Math.round((canvasH - drawH) / 2);
+
+    ctx.drawImage(
+      sourceImage,
+      0, slice.y, sourceImage.width, slice.h,
+      marginX, Math.max(marginY, marginX), drawW, drawH
+    );
+
+    const label = document.createElement('div');
+    label.className = 'page-label';
+    label.textContent = `第 ${i + 1} 页`;
+
+    card.appendChild(canvas);
+    card.appendChild(label);
+    pagesGrid.appendChild(card);
+  });
+}
+
+document.getElementById('exportPdf').addEventListener('click', () => {
+  if (!slices.length) return;
+
+  const isPortrait = orientationSelect.value === 'portrait';
+  const pdf = new jsPDF({ orientation: isPortrait ? 'p' : 'l', unit: 'mm', format: 'a4' });
+
+  const pdfW = isPortrait ? 210 : 297;
+  const pdfH = isPortrait ? 297 : 210;
+
+  const marginPct = parseInt(marginSelect.value) / 100;
+  const marginMmX = pdfW * marginPct;
+  const contentW = pdfW - marginMmX * 2;
+
+  slices.forEach((slice, i) => {
+    if (i > 0) pdf.addPage();
+
+    const canvas = document.createElement('canvas');
+    canvas.width = sourceImage.width;
+    canvas.height = slice.fullH;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(sourceImage, 0, slice.y, sourceImage.width, slice.h, 0, 0, sourceImage.width, slice.h);
+
+    // Calculate content height maintaining aspect ratio
+    const contentH = contentW * (slice.h / sourceImage.width);
+    const marginMmY = Math.max((pdfH - contentH) / 2, marginMmX);
+
+    const imgData = canvas.toDataURL('image/jpeg', 0.92);
+    pdf.addImage(imgData, 'JPEG', marginMmX, marginMmY, contentW, contentH);
+  });
+
+  pdf.save('长截图裁切.pdf');
+});
+
+document.getElementById('exportImages').addEventListener('click', async () => {
+  if (!slices.length) return;
+
+  // Simple: download each image individually
+  const marginPct = parseInt(marginSelect.value) / 100;
+  const isPortrait = orientationSelect.value === 'portrait';
+  const a4Ratio = isPortrait ? A4_RATIO : (1 / A4_RATIO);
+
+  slices.forEach((slice, i) => {
+    const canvasW = sourceImage.width + Math.round(sourceImage.width * marginPct * 2);
+    const canvasH = Math.round(canvasW * a4Ratio);
+    const canvas = document.createElement('canvas');
+    canvas.width = canvasW;
+    canvas.height = canvasH;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvasW, canvasH);
+
+    const marginX = Math.round(canvasW * marginPct);
+    const drawW = sourceImage.width;
+    const drawH = slice.h;
+    const marginY = Math.max(Math.round((canvasH - drawH) / 2), marginX);
+
+    ctx.drawImage(sourceImage, 0, slice.y, sourceImage.width, slice.h, marginX, marginY, drawW, drawH);
+
+    const link = document.createElement('a');
+    link.download = `第${i + 1}页.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  });
+});
+</script>
+</body>
+</html>
